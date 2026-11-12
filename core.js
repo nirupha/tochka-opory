@@ -1,0 +1,10 @@
+/* Pure state helpers shared by the browser and tests. */
+(function(root){
+const optional=new Set(['fractions','equations']);
+function numberAnswer(value){const s=String(value).trim().replaceAll(',','.').replaceAll('−','-');if(!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:\s*\/\s*[+-]?(?:\d+(?:\.\d*)?|\.\d+))?$/.test(s))return null;const [a,b]=s.split('/').map(Number);const n=b===undefined?a:a/b;return Number.isFinite(n)?n:null;}
+function correct(value,expected){const n=numberAnswer(value);return n!==null&&Math.abs(n-expected)<=1e-7*Math.max(1,Math.abs(expected));}
+function eligible(l,state){return !l.requires||optional.has(l.requires)||Boolean(state.done[l.requires]);}
+function cardUpdate(c,ok,now){c={level:0,hits:0,due:now,...c};if(!ok)return {...c,level:0,hits:0,due:now};if(c.level===0&&c.hits<2)return {...c,hits:c.hits+1,due:now};return {...c,level:c.level+1,due:now+[1,3,7,14,30][Math.min(c.level,4)]*86400000};}
+function cleanState(input,ids){if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Ожидается объект прогресса');const s={done:{},cards:{},errors:[],oral:{},attempts:{},notes:{}};for(const [id,t]of Object.entries(input.done||{}))if(ids.has(id)&&Number.isFinite(t)&&t>0)s.done[id]=t;for(const [id,c]of Object.entries(input.cards||{}))if(ids.has(id)&&c&&Number.isInteger(c.level)&&c.level>=0&&c.level<1000&&Number.isInteger(c.hits)&&c.hits>=0&&c.hits<=3&&Number.isFinite(c.due))s.cards[id]={level:c.level,hits:c.hits,due:c.due};if(Array.isArray(input.errors))s.errors=input.errors.filter(e=>e&&ids.has(e.lesson)&&typeof e.question==='string'&&Number.isFinite(e.at)).slice(-2000);for(const [id,v]of Object.entries(input.oral||{}))if(/^(ma|la)-\d+$/.test(id)&&typeof v==='boolean')s.oral[id]=v;for(const [id,n]of Object.entries(input.attempts||{}))if(ids.has(id)&&Number.isInteger(n)&&n>=0)s.attempts[id]=n;for(const [id,n]of Object.entries(input.notes||{}))if(ids.has(id)&&typeof n==='string')s.notes[id]=n.slice(0,20000);return s;}
+const api={numberAnswer,correct,eligible,cardUpdate,cleanState};if(typeof module!=='undefined')module.exports=api;else root.Study=api;
+})(typeof window!=='undefined'?window:globalThis);
